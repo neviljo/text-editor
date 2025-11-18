@@ -78,6 +78,151 @@
 
 
 
+// "use client";
+
+// import { useEffect, useMemo, useState } from "react";
+// import "@blocknote/core/fonts/inter.css";
+// import { useCreateBlockNote } from "@blocknote/react";
+// import { BlockNoteView } from "@blocknote/mantine";
+// import "@blocknote/mantine/style.css";
+
+// import * as Y from "yjs";
+// import { WebsocketProvider } from "y-websocket";
+// import { userColor } from "@/utils/colors";
+
+// export default function Editor({ roomId }: { roomId: string }) {
+//   // --- 1. Create Y.Doc once ---
+//   const ydoc = useMemo(() => new Y.Doc(), []);
+
+//   // --- 2. Track sync state ---
+//   const [isSynced, setIsSynced] = useState(false);
+//   const [readyToRender, setReadyToRender] = useState(false);
+
+//   // --- 3. Setup Undo Manager ---
+//   const undoManager = useMemo(() => {
+//     return new Y.UndoManager(ydoc.getXmlFragment("document-store"));
+//   }, [ydoc]);
+
+//   // --- 4. Setup provider ---
+//   const provider = useMemo(() => {
+//     const p = new WebsocketProvider(
+//       process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:1234",
+//       roomId,
+//       ydoc
+//     );
+
+//     // Awareness: richer user info (same as excalidraw)
+//     // p.awareness.setLocalStateField("user", {
+//     //   name: "Anonymous",
+//     //   color: userColor.color,
+//     //   colorLight: userColor.light,
+//     // });
+
+//      p.awareness.setLocalState({
+//     user: {
+//       // userId: provider.awareness.clientID.toString(), 
+//       name: "Anonymous",
+//       color: userColor.color,
+//       colorLight: userColor.light,
+//       cursorColor: userColor.color,
+//     },
+//   });
+
+//     return p;
+//   }, [roomId, ydoc]);
+
+//   // --- 5. Sync listener with persisted-state detection ---
+//   useEffect(() => {
+//     const xml = ydoc.getXmlFragment("document-store");
+
+//     const handleSync = (synced: boolean) => {
+//       setIsSynced(synced);
+
+//       // If persisted data exists, render immediately
+//       if (xml.toString().length > 0) {
+//         setReadyToRender(true);
+//         return;
+//       }
+
+//       // Otherwise wait for updates
+//       let timeoutId: NodeJS.Timeout | null = null;
+
+//       const onUpdate = () => {
+//         if (xml.toString().length > 0) {
+//           setReadyToRender(true);
+//           cleanup();
+//         }
+//       };
+
+//       const cleanup = () => {
+//         try {
+//           ydoc.off("update", onUpdate);
+//         } catch {}
+//         if (timeoutId) clearTimeout(timeoutId);
+//         timeoutId = null;
+//       };
+
+//       ydoc.on("update", onUpdate);
+
+//       timeoutId = setTimeout(() => {
+//         setReadyToRender(true); // Room empty → render
+//         cleanup();
+//       }, 400);
+//     };
+
+//     provider.on("sync", handleSync);
+
+//     return () => {
+//       provider.off("sync", handleSync);
+//       provider.destroy();
+//     };
+//   }, [provider, ydoc]);
+
+//   // --- 6. Debug logging like Excalidraw version (optional) ---
+//   useEffect(() => {
+//     const xml = ydoc.getXmlFragment("document-store");
+
+//     const logUpdate = () => {
+//       console.log("[Yjs Document Updated]", xml.toString());
+//     };
+
+//     ydoc.on("update", logUpdate);
+
+//     return () => ydoc.off("update", logUpdate);
+//   }, [ydoc]);
+
+//   // --- 7. Create BlockNote editor AFTER sync ---
+//   const editor = useCreateBlockNote({
+//     collaboration: {
+//       provider,
+//       fragment: ydoc.getXmlFragment("document-store"),
+//       user: {
+//         // userId: provider.awareness.clientID.toString(), 
+//         name: "Anonymous",
+//       color: userColor.color,
+//       colorLight: userColor.light,
+//       cursorColor: userColor.color,
+//       },
+//       showCursorLabels: "always",
+//     },
+//   });
+
+//   // --- 8. Do NOT render before sync ---
+//   if (!isSynced || !readyToRender) {
+//     return <div>Loading editor…</div>;
+//   }
+
+//   return (
+//     <div className="w-full">
+//       <BlockNoteView
+//         editor={editor}
+//         theme="light"
+//       />
+//     </div>
+//   );
+// }
+
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -103,7 +248,14 @@ export default function Editor({ roomId }: { roomId: string }) {
     return new Y.UndoManager(ydoc.getXmlFragment("document-store"));
   }, [ydoc]);
 
-  // --- 4. Setup provider ---
+  // --- 4. Generate consistent user info ---
+  const userInfo = useMemo(() => ({
+    name: "Anonymous",
+    color: userColor.color,
+    colorLight: userColor.light,
+  }), []);
+
+  // --- 5. Setup provider ---
   const provider = useMemo(() => {
     const p = new WebsocketProvider(
       process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:1234",
@@ -111,26 +263,31 @@ export default function Editor({ roomId }: { roomId: string }) {
       ydoc
     );
 
-    // Awareness: richer user info (same as excalidraw)
-    // p.awareness.setLocalStateField("user", {
-    //   name: "Anonymous",
-    //   color: userColor.color,
-    //   colorLight: userColor.light,
-    // });
-
-     p.awareness.setLocalState({
-    user: {
-      name: "Anonymous",
-      color: userColor.color,
-      colorLight: userColor.light,
-      cursorColor: userColor.color,
-    },
-  });
-
     return p;
   }, [roomId, ydoc]);
 
-  // --- 5. Sync listener with persisted-state detection ---
+  // --- 6. Set awareness AFTER provider is ready ---
+  useEffect(() => {
+    const setAwareness = () => {
+      provider.awareness.setLocalStateField("user", {
+        name: userInfo.name,
+        color: userInfo.color,
+        colorLight: userInfo.colorLight,
+      });
+    };
+
+    // Set immediately
+    setAwareness();
+
+    // Also set on connection status change
+    provider.on("status", setAwareness);
+
+    return () => {
+      provider.off("status", setAwareness);
+    };
+  }, [provider, userInfo]);
+
+  // --- 7. Sync listener with persisted-state detection ---
   useEffect(() => {
     const xml = ydoc.getXmlFragment("document-store");
 
@@ -177,7 +334,7 @@ export default function Editor({ roomId }: { roomId: string }) {
     };
   }, [provider, ydoc]);
 
-  // --- 6. Debug logging like Excalidraw version (optional) ---
+  // --- 8. Debug logging (optional) ---
   useEffect(() => {
     const xml = ydoc.getXmlFragment("document-store");
 
@@ -190,21 +347,19 @@ export default function Editor({ roomId }: { roomId: string }) {
     return () => ydoc.off("update", logUpdate);
   }, [ydoc]);
 
-  // --- 7. Create BlockNote editor AFTER sync ---
+  // --- 9. Create BlockNote editor AFTER sync ---
   const editor = useCreateBlockNote({
     collaboration: {
       provider,
       fragment: ydoc.getXmlFragment("document-store"),
       user: {
-        name: "Anonymous",
-        color: userColor.color,
-        cursorColor: userColor.color,
+        name: userInfo.name,
+        color: userInfo.color,
       },
-      showCursorLabels: "always",
     },
   });
 
-  // --- 8. Do NOT render before sync ---
+  // --- 10. Do NOT render before sync ---
   if (!isSynced || !readyToRender) {
     return <div>Loading editor…</div>;
   }
@@ -218,5 +373,3 @@ export default function Editor({ roomId }: { roomId: string }) {
     </div>
   );
 }
-
-
