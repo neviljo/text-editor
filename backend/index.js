@@ -37,6 +37,9 @@ wss.on("connection", (conn, req) => {
 // Persistence handlers
 setPersistence({
   bindState: async (docName, ydoc) => {
+    // Demo room should not be persistent
+    if (docName === "landing-demo") return;
+
     console.log(`⤵️ bindState called for "${docName}"`);
     try {
       const persistedYdoc = await mongodbPersistence.getYDoc(docName);
@@ -76,6 +79,9 @@ setPersistence({
   },
 
   writeState: async (docName, ydoc) => {
+    // Demo room should not be persistent
+    if (docName === "landing-demo") return;
+
     console.log(`⤴️ writeState called for "${docName}"`);
     try {
       await mongodbPersistence.flushDocument(docName);

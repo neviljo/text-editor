@@ -38,13 +38,13 @@ export default function Home() {
             </div>
             <div className="flex-1 flex justify-center">
               <div className="bg-white px-3 py-1 rounded-md text-xs text-gray-500 border border-gray-200 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                Live Demo
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                Live Public Demo
               </div>
             </div>
           </div>
           <div className="flex-1 relative">
-            <UnifiedEditorLayout roomId="" showHeader={false} />
+            <UnifiedEditorLayout roomId="landing-demo" showHeader={false} />
           </div>
         </div>
       </div>
