@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useState, useRef, useEffect } from "react";
+import { RoomProvider } from "@/components/RoomContext";
 
 type ViewMode = "canvas" | "document" | "both";
 
@@ -116,46 +117,48 @@ export default function Page() {
       </div>
 
       {/* Content Area */}
-      <div ref={containerRef} className="flex flex-1 overflow-hidden relative">
-        {/* Document Panel */}
-        <div
-          className="absolute top-0 left-0 h-full border-r border-gray-300 overflow-y-auto bg-white transition-all"
-          style={{
-            width: viewMode === "both" ? `${splitRatio}%` : "100%",
-            visibility: viewMode === "canvas" ? "hidden" : "visible",
-            zIndex: viewMode === "document" ? 2 : 1,
-          }}
-        >
-          <Editor roomId={roomId} />
-        </div>
-
-        {/* Draggable Divider */}
-        {viewMode === "both" && (
+      <RoomProvider roomId={roomId}>
+        <div ref={containerRef} className="flex flex-1 overflow-hidden relative">
+          {/* Document Panel */}
           <div
-            onMouseDown={handleMouseDown}
-            className="absolute top-0 h-full w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors group z-10"
+            className="absolute top-0 left-0 h-full border-r border-gray-300 overflow-y-auto bg-white transition-all"
             style={{
-              left: `${splitRatio}%`,
-              flexShrink: 0
+              width: viewMode === "both" ? `${splitRatio}%` : "100%",
+              visibility: viewMode === "canvas" ? "hidden" : "visible",
+              zIndex: viewMode === "document" ? 2 : 1,
             }}
           >
-            {/* Visual indicator */}
-            <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-500/20" />
+            <Editor roomId={roomId} />
           </div>
-        )}
 
-        {/* Canvas Panel */}
-        <div
-          className="absolute top-0 right-0 h-full bg-gray-100 transition-all"
-          style={{
-            width: viewMode === "both" ? `${100 - splitRatio}%` : "100%",
-            visibility: viewMode === "document" ? "hidden" : "visible",
-            zIndex: viewMode === "canvas" ? 2 : 1,
-          }}
-        >
-          <Whiteboard roomId={roomId} />
+          {/* Draggable Divider */}
+          {viewMode === "both" && (
+            <div
+              onMouseDown={handleMouseDown}
+              className="absolute top-0 h-full w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors group z-10"
+              style={{
+                left: `${splitRatio}%`,
+                flexShrink: 0
+              }}
+            >
+              {/* Visual indicator */}
+              <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-500/20" />
+            </div>
+          )}
+
+          {/* Canvas Panel */}
+          <div
+            className="absolute top-0 right-0 h-full bg-gray-100 transition-all"
+            style={{
+              width: viewMode === "both" ? `${100 - splitRatio}%` : "100%",
+              visibility: viewMode === "document" ? "hidden" : "visible",
+              zIndex: viewMode === "canvas" ? 2 : 1,
+            }}
+          >
+            <Whiteboard roomId={roomId} />
+          </div>
         </div>
-      </div>
+      </RoomProvider>
     </div>
   );
 }

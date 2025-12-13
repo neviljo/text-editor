@@ -49,9 +49,9 @@ setPersistence({
 
       if (size && size > 0) {
         Y.applyUpdate(ydoc, persistedUpdate);
-        console.log(" - applied persisted update");
+        // console.log(" - applied persisted update");
       } else {
-        console.log(" - no persisted update to apply");
+        // console.log(" - no persisted update to apply");
       }
 
       if (typeof persistedYdoc?.destroy === "function") {
@@ -64,7 +64,7 @@ setPersistence({
           if (updateSize && updateSize > 0) {
             await mongodbPersistence.storeUpdate(docName, update);
           } else {
-            console.log(" - skipping empty update storage");
+            // console.log(" - skipping empty update storage");
           }
         } catch (err) {
           console.error("Error storing update:", err);
@@ -87,10 +87,10 @@ setPersistence({
 
       if (mergedSize && mergedSize > 0) {
         await mongodbPersistence.storeUpdate(docName, mergedUpdate);
-        console.log(" - stored merged update");
-        console.log("------------------------------");
+        // console.log(" - stored merged update");
+        // console.log("------------------------------");
       } else {
-        console.log(" - skipping storing empty merged update");
+        // console.log(" - skipping storing empty merged update");
       }
     } catch (err) {
       console.error("writeState error:", err);
