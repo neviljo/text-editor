@@ -12,8 +12,10 @@
   "type": "module",
   "dependencies": {
     "@y/websocket-server": "^0.1.1",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "mongoose": "^9.0.1",
     "nodemon": "^3.1.11",
     "ws": "^8.18.3",
     "y-mongodb-provider": "^0.2.1",

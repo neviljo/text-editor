@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useState, useRef, useEffect } from "react";
 import { RoomProvider } from "@/components/RoomContext";
+import { useAuth } from "@clerk/nextjs";
+import AuthControl from "./AuthControl";
 
 type ViewMode = "canvas" | "document" | "both";
 
@@ -27,6 +29,7 @@ export default function UnifiedEditorLayout({ roomId, showHeader = true, classNa
     const [splitRatio, setSplitRatio] = useState(50); // Percentage for document panel
     const [isDragging, setIsDragging] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const { userId } = useAuth();
 
     async function handleCopyRoomId() {
         await navigator.clipboard.writeText(roomId);
@@ -78,8 +81,10 @@ export default function UnifiedEditorLayout({ roomId, showHeader = true, classNa
         <div className={`flex flex-col h-full overflow-hidden ${className}`}>
             {/* Header */}
             {showHeader && (
-                <div className="flex items-center justify-between p-2 bg-gray-900 text-white shrink-0">
-                    <p className="font-bold text-xl">Room ID: {roomId || "Demo Mode"}</p>
+                <div className="flex items-center justify-between p-2 bg-gray-900 text-white shrink-0 gap-4">
+                    <div className="flex items-center gap-4">
+                        <p className="font-bold text-xl">Room ID: {roomId || "Demo Mode"}</p>
+                    </div>
 
                     {/* View Mode Selector */}
                     <div className="flex gap-2">
@@ -119,11 +124,12 @@ export default function UnifiedEditorLayout({ roomId, showHeader = true, classNa
                     >
                         Copy ID
                     </button>
+                    <AuthControl />
                 </div>
             )}
 
             {/* Content Area */}
-            <RoomProvider roomId={roomId}>
+            <RoomProvider roomId={roomId} userId={userId}>
                 <div ref={containerRef} className="flex flex-1 overflow-hidden relative">
                     {/* Document Panel */}
                     <div

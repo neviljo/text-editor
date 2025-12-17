@@ -2,9 +2,13 @@
 
 import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import { config } from "@/utils/config";
+
+import { useAuth } from "@clerk/nextjs";
 
 const RoomComponent = () => {
   const [roomId, setRoomId] = useState("");
+  const { userId } = useAuth();
 
   const [createRoomLoading, setCreateRoomLoading] = useState<boolean>(false);
   const [joinRoomLoading, setJoinRoomLoadingLoading] = useState<boolean>(false);
@@ -28,12 +32,31 @@ const RoomComponent = () => {
     }
   };
 
-  const createRoom = () => {
+  const createRoom = async () => {
     setCreateRoomLoading(true);
-    const id = Math.random().toString(36).substring(2, 15);
-    startTransition(() => {
-      router.push(`/room/${id}`);
-    });
+    try {
+      const res = await fetch(`${config.httpUrl}/rooms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerId: userId }),
+      });
+
+      if (!res.ok) throw new Error("Failed to create room");
+
+      const data = await res.json();
+
+      startTransition(() => {
+        router.push(`/room/${data.roomId}`);
+      });
+    } catch (err) {
+      console.error("Failed to create room:", err);
+      alert("Failed to create room. Falling back to local ID.");
+      // Fallback
+      const id = Math.random().toString(36).substring(2, 15);
+      startTransition(() => {
+        router.push(`/room/${id}`);
+      });
+    }
   };
 
   return (

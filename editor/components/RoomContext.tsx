@@ -4,11 +4,13 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { userColor } from "@/utils/colors";
+import { config } from "@/utils/config";
 
 interface RoomContextType {
     provider: WebsocketProvider | null;
     ydoc: Y.Doc;
     isSynced: boolean;
+    userId?: string | null;
 }
 
 const RoomContext = createContext<RoomContextType | null>(null);
@@ -23,9 +25,11 @@ export function useRoom() {
 
 export function RoomProvider({
     roomId,
+    userId,
     children,
 }: {
     roomId: string;
+    userId?: string | null;
     children: React.ReactNode;
 }) {
     const [isSynced, setIsSynced] = useState(false);
@@ -37,8 +41,7 @@ export function RoomProvider({
     const provider = useMemo(() => {
         if (!roomId) return null;
 
-        const wsUrl = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:1234";
-        const p = new WebsocketProvider(wsUrl, roomId, ydoc);
+        const p = new WebsocketProvider(config.websocketUrl, roomId, ydoc);
 
         // Initial awareness setup
         p.awareness.setLocalStateField("user", {
@@ -65,7 +68,7 @@ export function RoomProvider({
     }, [provider]);
 
     return (
-        <RoomContext.Provider value={{ provider, ydoc, isSynced }}>
+        <RoomContext.Provider value={{ provider, ydoc, isSynced, userId }}>
             {children}
         </RoomContext.Provider>
     );

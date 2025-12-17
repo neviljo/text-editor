@@ -1,18 +1,48 @@
-import express from "express"
-import http from "http"
-import { WebSocketServer } from "ws"
+import express from "express";
+import http from "http";
+import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import * as Y from "yjs";
 import { setPersistence, setupWSConnection } from "@y/websocket-server/utils";
 import { MongodbPersistence } from "y-mongodb-provider";
+import mongoose from "mongoose";
+import cors from "cors";
+import Room from "./models/Room.js";
 
 dotenv.config();
-const app = express()
-const PORT = process.env.PORT
+const app = express();
+const PORT = process.env.PORT || 1234;
+
+// MongoDB connection handled in startServer
+
+app.use(cors());
+app.use(express.json());
+
+// Create a new room
+app.post("/rooms", async (req, res) => {
+  try {
+    const { ownerId } = req.body;
+    // Generate a simple random ID similar to what was done on frontend
+    const roomId = Math.random().toString(36).substring(2, 15);
+
+    const room = new Room({
+      roomId,
+      ownerId: ownerId || undefined,
+    });
+
+    await room.save();
+    console.log(`✨ Created room ${roomId} (Owner: ${ownerId || "Anonymous"})`);
+
+    res.json({ roomId });
+  } catch (error) {
+    console.error("Error creating room:", error);
+    res.status(500).json({ error: "Failed to create room" });
+  }
+});
 
 app.get("/", (req, res) => {
   res.send("Yjs WebSocket server is running with Express 🚀");
-})
+});
 
 // Create HTTP server from Express app
 const server = http.createServer(app)
@@ -113,7 +143,22 @@ process.on("SIGINT", () => {
   });
 });
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`✅ Express + Yjs WebSocket server running at ws://localhost:${PORT}`);
-});
+const startServer = async () => {
+  try {
+    if (!process.env.MONGO_URI) {
+      throw new Error("❌ MONGO_URI is missing in environment variables");
+    }
+
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ Mongoose connected");
+
+    server.listen(PORT, () => {
+      console.log(`✅ Express + Yjs WebSocket server running at ws://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ Failed to start server:", err);
+    process.exit(1);
+  }
+};
+
+startServer();

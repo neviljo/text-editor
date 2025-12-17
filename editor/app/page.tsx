@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import UnifiedEditorLayout from "@/components/UnifiedEditorLayout";
+import AuthControl from "@/components/AuthControl";
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-white relative">
+      <div className="absolute top-4 right-4 z-50">
+        <AuthControl />
+      </div>
+
       {/* Hero Section */}
       <div className="flex flex-col items-center justify-center py-20 px-4 text-center space-y-8">
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gray-900">
