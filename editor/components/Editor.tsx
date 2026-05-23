@@ -32,11 +32,17 @@ export default function Editor({ roomId }: { roomId: string }) {
     } : undefined,
   });
 
-  // --- 3. Do NOT render before sync ---
-  // Removed blocking check for optimistic loading
-  // if (!provider || !isSynced) {
-  //   return <div>Loading editor…</div>;
-  // }
+  // Wait for provider and sync before rendering to prevent data loss
+  if (!provider || !isSynced) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading editor...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

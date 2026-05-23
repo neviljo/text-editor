@@ -1,7 +1,13 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import UnifiedEditorLayout from "@/components/UnifiedEditorLayout";
+import dynamic from "next/dynamic";
+
+// Lazy load the editor to improve initial page load
+const UnifiedEditorLayout = dynamic(
+  () => import("@/components/UnifiedEditorLayout"),
+  { ssr: false }
+);
 
 export default function Page() {
   const params = useParams();

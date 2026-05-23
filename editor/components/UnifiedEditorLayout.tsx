@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useState, useRef, useEffect } from "react";
-import { RoomProvider } from "@/components/RoomContext";
+import Link from "next/link";
+import { RoomProvider, useRoom } from "@/components/RoomContext";
 import { useAuth } from "@clerk/nextjs";
 import AuthControl from "./AuthControl";
 
@@ -22,6 +23,103 @@ interface UnifiedEditorLayoutProps {
     roomId: string; // If empty string, runs in isolated Demo mode (local only)
     showHeader?: boolean; // Option to hide the header for cleaner demo look
     className?: string;
+}
+
+/**
+ * Access denied view - shown when user doesn't have permission to access the canvas.
+ */
+function AccessDeniedView() {
+    return (
+        <div className="flex items-center justify-center h-full bg-gray-50">
+            <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
+                <div className="mb-4">
+                    <svg className="w-16 h-16 mx-auto text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+                <p className="text-gray-600 mb-6">
+                    You don&apos;t have permission to access this canvas.
+                    Please sign in or ask the owner for access.
+                </p>
+                <div className="flex gap-4 justify-center">
+                    <Link
+                        href="/join"
+                        className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                        Go Back
+                    </Link>
+                    <AuthControl />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Content wrapper that checks for access denial.
+ */
+function ContentWithAccessCheck({
+    roomId,
+    viewMode,
+    splitRatio,
+    handleMouseDown,
+    containerRef,
+}: {
+    roomId: string;
+    viewMode: ViewMode;
+    splitRatio: number;
+    handleMouseDown: () => void;
+    containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+    const { accessDenied } = useRoom();
+
+    if (accessDenied) {
+        return <AccessDeniedView />;
+    }
+
+    return (
+        <div ref={containerRef} className="flex flex-1 overflow-hidden relative">
+            {/* Document Panel */}
+            <div
+                className="absolute top-0 left-0 h-full border-r border-gray-300 overflow-y-auto bg-white transition-all"
+                style={{
+                    width: viewMode === "both" ? `${splitRatio}%` : "100%",
+                    visibility: viewMode === "canvas" ? "hidden" : "visible",
+                    zIndex: viewMode === "document" ? 2 : 1,
+                }}
+            >
+                <Editor roomId={roomId} />
+            </div>
+
+            {/* Draggable Divider */}
+            {viewMode === "both" && (
+                <div
+                    onMouseDown={handleMouseDown}
+                    className="absolute top-0 h-full w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors group z-10"
+                    style={{
+                        left: `${splitRatio}%`,
+                        flexShrink: 0
+                    }}
+                >
+                    {/* Visual indicator */}
+                    <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-500/20" />
+                </div>
+            )}
+
+            {/* Canvas Panel */}
+            <div
+                className="absolute top-0 right-0 h-full bg-gray-100 transition-all"
+                style={{
+                    width: viewMode === "both" ? `${100 - splitRatio}%` : "100%",
+                    visibility: viewMode === "document" ? "hidden" : "visible",
+                    zIndex: viewMode === "canvas" ? 2 : 1,
+                }}
+            >
+                <Whiteboard roomId={roomId} />
+            </div>
+        </div>
+    );
 }
 
 export default function UnifiedEditorLayout({ roomId, showHeader = true, className = "" }: UnifiedEditorLayoutProps) {
@@ -130,46 +228,13 @@ export default function UnifiedEditorLayout({ roomId, showHeader = true, classNa
 
             {/* Content Area */}
             <RoomProvider roomId={roomId} userId={userId}>
-                <div ref={containerRef} className="flex flex-1 overflow-hidden relative">
-                    {/* Document Panel */}
-                    <div
-                        className="absolute top-0 left-0 h-full border-r border-gray-300 overflow-y-auto bg-white transition-all"
-                        style={{
-                            width: viewMode === "both" ? `${splitRatio}%` : "100%",
-                            visibility: viewMode === "canvas" ? "hidden" : "visible",
-                            zIndex: viewMode === "document" ? 2 : 1,
-                        }}
-                    >
-                        <Editor roomId={roomId} />
-                    </div>
-
-                    {/* Draggable Divider */}
-                    {viewMode === "both" && (
-                        <div
-                            onMouseDown={handleMouseDown}
-                            className="absolute top-0 h-full w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors group z-10"
-                            style={{
-                                left: `${splitRatio}%`,
-                                flexShrink: 0
-                            }}
-                        >
-                            {/* Visual indicator */}
-                            <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-500/20" />
-                        </div>
-                    )}
-
-                    {/* Canvas Panel */}
-                    <div
-                        className="absolute top-0 right-0 h-full bg-gray-100 transition-all"
-                        style={{
-                            width: viewMode === "both" ? `${100 - splitRatio}%` : "100%",
-                            visibility: viewMode === "document" ? "hidden" : "visible",
-                            zIndex: viewMode === "canvas" ? 2 : 1,
-                        }}
-                    >
-                        <Whiteboard roomId={roomId} />
-                    </div>
-                </div>
+                <ContentWithAccessCheck
+                    roomId={roomId}
+                    viewMode={viewMode}
+                    splitRatio={splitRatio}
+                    handleMouseDown={handleMouseDown}
+                    containerRef={containerRef}
+                />
             </RoomProvider>
         </div>
     );

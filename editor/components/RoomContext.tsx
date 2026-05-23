@@ -1,20 +1,32 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { userColor } from "@/utils/colors";
-import { config } from "@/utils/config";
+import { CanvasProvider, useCanvas, roomIdToCanvasId } from "@/components/CanvasContext";
+
+/**
+ * RoomContext - Public API for room-based collaboration.
+ * 
+ * Internally delegates to CanvasContext for the actual implementation.
+ * This maintains backward compatibility while allowing internal refactoring.
+ */
 
 interface RoomContextType {
     provider: WebsocketProvider | null;
     ydoc: Y.Doc;
     isSynced: boolean;
     userId?: string | null;
+    accessDenied: boolean;
+    connectionError: string | null;
 }
 
 const RoomContext = createContext<RoomContextType | null>(null);
 
+/**
+ * Hook to access room collaboration context.
+ * This is the public API - components should use this hook.
+ */
 export function useRoom() {
     const context = useContext(RoomContext);
     if (!context) {
@@ -23,53 +35,54 @@ export function useRoom() {
     return context;
 }
 
+interface RoomProviderProps {
+    roomId: string;
+    userId?: string | null;
+    children: React.ReactNode;
+}
+
+/**
+ * Provider for room-based collaboration.
+ * Internally maps roomId to canvasId and delegates to CanvasProvider.
+ */
 export function RoomProvider({
     roomId,
     userId,
     children,
+}: RoomProviderProps) {
+    // Map room ID to internal canvas ID (1:1 for now)
+    const canvasId = roomIdToCanvasId(roomId);
+
+    return (
+        <CanvasProvider canvasId={canvasId} userId={userId}>
+            <RoomContextBridge userId={userId}>
+                {children}
+            </RoomContextBridge>
+        </CanvasProvider>
+    );
+}
+
+/**
+ * Internal bridge component that exposes CanvasContext values via RoomContext.
+ * This allows existing components using useRoom() to work unchanged.
+ */
+function RoomContextBridge({
+    userId,
+    children,
 }: {
-    roomId: string;
     userId?: string | null;
     children: React.ReactNode;
 }) {
-    const [isSynced, setIsSynced] = useState(false);
+    const { provider, ydoc, isSynced, accessDenied, connectionError } = useCanvas();
 
-    // 1. Create the doc once
-    const ydoc = useMemo(() => new Y.Doc(), []);
-
-    // 2. Create the provider once
-    const provider = useMemo(() => {
-        if (!roomId) return null;
-
-        const p = new WebsocketProvider(config.websocketUrl, roomId, ydoc);
-
-        // Initial awareness setup
-        p.awareness.setLocalStateField("user", {
-            name: "Anonymous",
-            color: userColor.color,
-            colorLight: userColor.light,
-        });
-
-        p.on("sync", (synced: boolean) => {
-            setIsSynced(synced);
-            console.log(`[RoomProvider] Synced with room "${roomId}":`, synced);
-        });
-
-        return p;
-    }, [roomId, ydoc]);
-
-    // Clean up on unmount
-    useEffect(() => {
-        return () => {
-            if (provider) {
-                provider.destroy();
-            }
-        };
-    }, [provider]);
+    const contextValue = React.useMemo(() => ({
+        provider, ydoc, isSynced, userId, accessDenied, connectionError
+    }), [provider, ydoc, isSynced, userId, accessDenied, connectionError]);
 
     return (
-        <RoomContext.Provider value={{ provider, ydoc, isSynced, userId }}>
+        <RoomContext.Provider value={contextValue}>
             {children}
         </RoomContext.Provider>
     );
 }
+

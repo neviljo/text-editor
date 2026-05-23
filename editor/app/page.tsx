@@ -1,8 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import UnifiedEditorLayout from "@/components/UnifiedEditorLayout";
+import dynamic from "next/dynamic";
 import AuthControl from "@/components/AuthControl";
+
+// Lazy load the editor to avoid bundling 50MB+ of dependencies on home page
+const UnifiedEditorLayout = dynamic(
+  () => import("@/components/UnifiedEditorLayout"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading demo...</p>
+        </div>
+      </div>
+    )
+  }
+);
 
 export default function Home() {
   return (
