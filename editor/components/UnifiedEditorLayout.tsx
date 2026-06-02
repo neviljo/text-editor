@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { RoomProvider, useRoom } from "@/components/RoomContext";
+import { CollaborationProvider, useCollaboration } from "@/components/CollaborationContext";
 import { useAuth } from "@clerk/nextjs";
 import AuthControl from "./AuthControl";
 
@@ -72,7 +72,7 @@ function ContentWithAccessCheck({
     handleMouseDown: () => void;
     containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
-    const { accessDenied } = useRoom();
+    const { accessDenied, provider } = useCollaboration();
 
     if (accessDenied) {
         return <AccessDeniedView />;
@@ -89,7 +89,7 @@ function ContentWithAccessCheck({
                     zIndex: viewMode === "document" ? 2 : 1,
                 }}
             >
-                <Editor roomId={roomId} />
+                {provider && <Editor key={`editor-${roomId}`} roomId={roomId} />}
             </div>
 
             {/* Draggable Divider */}
@@ -116,7 +116,7 @@ function ContentWithAccessCheck({
                     zIndex: viewMode === "canvas" ? 2 : 1,
                 }}
             >
-                <Whiteboard roomId={roomId} />
+                {provider && <Whiteboard key={`whiteboard-${roomId}`} roomId={roomId} />}
             </div>
         </div>
     );
@@ -130,8 +130,11 @@ export default function UnifiedEditorLayout({ roomId, showHeader = true, classNa
     const { userId } = useAuth();
 
     async function handleCopyRoomId() {
-        await navigator.clipboard.writeText(roomId);
-        alert("Room ID copied");
+        try {
+            await navigator.clipboard.writeText(roomId);
+        } catch {
+            // Clipboard write failed - silently ignore
+        }
     }
 
     const handleMouseDown = () => {
@@ -227,7 +230,7 @@ export default function UnifiedEditorLayout({ roomId, showHeader = true, classNa
             )}
 
             {/* Content Area */}
-            <RoomProvider roomId={roomId} userId={userId}>
+            <CollaborationProvider roomId={roomId} userId={userId}>
                 <ContentWithAccessCheck
                     roomId={roomId}
                     viewMode={viewMode}
@@ -235,7 +238,7 @@ export default function UnifiedEditorLayout({ roomId, showHeader = true, classNa
                     handleMouseDown={handleMouseDown}
                     containerRef={containerRef}
                 />
-            </RoomProvider>
+            </CollaborationProvider>
         </div>
     );
 }

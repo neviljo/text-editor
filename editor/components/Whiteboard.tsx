@@ -6,8 +6,7 @@ import * as Y from "yjs";
 import { ExcalidrawBinding, yjsToExcalidraw } from "y-excalidraw";
 import { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
-import debounce from "../utils/debounce";
-import { useRoom } from "@/components/RoomContext";
+import { useCollaboration } from "@/components/CollaborationContext";
 import { useHandleLibrary } from "@excalidraw/excalidraw";
 
 interface ExcalidrawElementEntry {
@@ -20,8 +19,8 @@ const Excalidraw = dynamic(
     { ssr: false }
 );
 
-export default function Whiteboard({ roomId }: { roomId: string }) {
-    const { provider, ydoc, isSynced } = useRoom();
+export default function Whiteboard({ roomId: _roomId }: { roomId: string }) {
+    const { provider, ydoc, isSynced } = useCollaboration();
     const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
     const [binding, setBinding] = useState<ExcalidrawBinding | null>(null);
     const excalidrawRef = useRef(null);
@@ -34,16 +33,12 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
 
     useHandleLibrary({ excalidrawAPI: api });
 
-    useEffect(() => {
-        // renders library items in the same tab instead of another
-        window.name = roomId;
-    }, [roomId]);
+    const existingBindingRef = useRef<ExcalidrawBinding | null>(null);
 
-    // Create binding once with stable dependencies (only api and provider change)
-    // Using useMemo instead of useEffect prevents multiple binding creations
-    // Initialize binding in useEffect to avoid side effects during render
     useEffect(() => {
         if (!api || !excalidrawRef.current || !provider) return;
+
+        if (existingBindingRef.current) return;
 
         const newBinding = new ExcalidrawBinding(
             yElements,
@@ -57,10 +52,11 @@ export default function Whiteboard({ roomId }: { roomId: string }) {
         );
 
         setBinding(newBinding);
+        existingBindingRef.current = newBinding;
 
-        // Cleanup
         return () => {
             newBinding.destroy();
+            existingBindingRef.current = null;
         };
     }, [api, provider, yElements, yAssets]);
 

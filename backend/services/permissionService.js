@@ -1,6 +1,8 @@
 import Canvas from "../models/Canvas.js";
 import CanvasMember from "../models/CanvasMember.js";
 import { getMemberRole, isOwner as checkIsOwner } from "./membershipService.js";
+import { getCanvasByRoomId } from "./canvasService.js";
+import { permissionCache, getPermissionKey, trackPermissionKey } from "../utils/cache.js";
 
 /**
  * Permission Service - centralized access control logic.
@@ -27,36 +29,50 @@ export async function canAccess(canvasId, userId) {
         return true;
     }
 
+    // Check cache first
+    const cacheKey = getPermissionKey(canvasId, userId);
+    const cached = permissionCache.get(cacheKey);
+    if (cached !== undefined) {
+        return cached;
+    }
+
     // Get canvas to check visibility
     const canvas = await Canvas.findOne({ canvasId });
 
     // Canvas doesn't exist yet - allow creation flow
     if (!canvas) {
+        permissionCache.set(cacheKey, true);
+        trackPermissionKey(canvasId, cacheKey);
         return true;
     }
 
     // Public canvases: accessible to everyone
     if (canvas.isPublic) {
+        permissionCache.set(cacheKey, true);
+        trackPermissionKey(canvasId, cacheKey);
         return true;
     }
 
     // Private canvas: require authentication
     if (!userId) {
+        permissionCache.set(cacheKey, false);
+        trackPermissionKey(canvasId, cacheKey);
         return false;
     }
 
     // Owner check
     if (canvas.ownerId === userId) {
+        permissionCache.set(cacheKey, true);
+        trackPermissionKey(canvasId, cacheKey);
         return true;
     }
 
     // Member check
     const member = await CanvasMember.findOne({ canvasId, userId });
-    if (member) {
-        return true;
-    }
-
-    return false;
+    const result = !!member;
+    permissionCache.set(cacheKey, result);
+    trackPermissionKey(canvasId, cacheKey);
+    return result;
 }
 
 /**

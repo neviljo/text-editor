@@ -7,8 +7,7 @@ import { setPersistence, setupWSConnection } from "@y/websocket-server/utils";
 import { MongodbPersistence } from "y-mongodb-provider";
 import mongoose from "mongoose";
 import cors from "cors";
-import Room from "./models/Room.js";
-import { createCanvasForRoom, addCollaborator, roomIdToCanvasId, deleteCanvas, updateCanvas } from "./services/canvasService.js";
+import { createCanvasForRoom, addCollaborator, deleteCanvas, updateCanvas } from "./services/canvasService.js";
 import { canAccess, isOwner, isDemoCanvas } from "./services/permissionService.js";
 
 dotenv.config();
@@ -17,24 +16,18 @@ const PORT = process.env.PORT || 1234;
 
 // MongoDB connection handled in startServer
 
-app.use(cors());
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+}));
 app.use(express.json());
 
-// Create a new room (public API unchanged, internal uses canvas)
+// Create a new room - creates a canvas internally
 app.post("/rooms", async (req, res) => {
   try {
     const { ownerId } = req.body;
-    // Generate a simple random ID similar to what was done on frontend
     const roomId = Math.random().toString(36).substring(2, 15);
 
-    // Legacy: still save to Room collection for backward compatibility
-    const room = new Room({
-      roomId,
-      ownerId: ownerId || undefined,
-    });
-    await room.save();
-
-    // Internal: also create canvas (the new abstraction)
     await createCanvasForRoom(roomId, ownerId);
 
     console.log(`✨ Created room ${roomId} (Owner: ${ownerId || "Anonymous"})`);

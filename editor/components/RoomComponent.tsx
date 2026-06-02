@@ -8,31 +8,32 @@ import { useAuth } from "@clerk/nextjs";
 
 const RoomComponent = () => {
   const [roomId, setRoomId] = useState("");
+  const [roomIdError, setRoomIdError] = useState("");
   const { userId } = useAuth();
 
-  const [createRoomLoading, setCreateRoomLoading] = useState<boolean>(false);
-  const [joinRoomLoading, setJoinRoomLoadingLoading] = useState<boolean>(false);
+  const [createRoomLoading, setCreateRoomLoading] = useState(false);
+  const [joinRoomLoading, setJoinRoomLoading] = useState(false);
+  const [createRoomError, setCreateRoomError] = useState("");
 
   const router = useRouter();
 
-  // const generateRoomId = () => {
-  //   const id = Math.random().toString(36).substring(2, 15);
-  //   setRoomId(id);
-  // };
-
   const joinRoom = () => {
-    setJoinRoomLoadingLoading(true);
+    setRoomIdError("");
 
-    if (roomId.trim()) {
-      startTransition(() => {
-        router.push(`/room/${roomId.trim()}`);
-      });
-    } else {
-      alert("Enter a roomId");
+    if (!roomId.trim()) {
+      setRoomIdError("Please enter a room ID");
+      return;
     }
+
+    setJoinRoomLoading(true);
+
+    startTransition(() => {
+      router.push(`/room/${roomId.trim()}`);
+    });
   };
 
   const createRoom = async () => {
+    setCreateRoomError("");
     setCreateRoomLoading(true);
     try {
       const res = await fetch(`${config.httpUrl}/rooms`, {
@@ -50,12 +51,9 @@ const RoomComponent = () => {
       });
     } catch (err) {
       console.error("Failed to create room:", err);
-      alert("Failed to create room. Falling back to local ID.");
-      // Fallback
-      const id = Math.random().toString(36).substring(2, 15);
-      startTransition(() => {
-        router.push(`/room/${id}`);
-      });
+      setCreateRoomError("Failed to create room. Please try again.");
+    } finally {
+      setCreateRoomLoading(false);
     }
   };
 
@@ -75,6 +73,9 @@ const RoomComponent = () => {
             >
               {createRoomLoading ? "Creating room..." : "Create New Room"}
             </button>
+            {createRoomError && (
+              <p className="mt-2 text-sm text-red-600 text-center">{createRoomError}</p>
+            )}
           </div>
 
           <div className="relative">
@@ -91,12 +92,18 @@ const RoomComponent = () => {
               <input
                 type="text"
                 value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
+                onChange={(e) => {
+                  setRoomId(e.target.value);
+                  setRoomIdError("");
+                }}
                 placeholder="Enter room ID"
                 className="flex-1 px-3 py-2 border text-black border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 onKeyDown={(e) => e.key === "Enter" && joinRoom()}
               />
             </div>
+            {roomIdError && (
+              <p className="text-sm text-red-600">{roomIdError}</p>
+            )}
             <button
               onClick={joinRoom}
               disabled={!roomId.trim() || joinRoomLoading}

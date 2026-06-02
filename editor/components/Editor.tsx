@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 
-import * as Y from "yjs";
 import { userColor } from "@/utils/colors";
-import { useRoom } from "@/components/RoomContext";
+import { useCollaboration } from "@/components/CollaborationContext";
 
-export default function Editor({ roomId }: { roomId: string }) {
-  const { provider, ydoc, isSynced } = useRoom();
+export default function Editor({ roomId: _roomId }: { roomId: string }) {
+  const { provider, ydoc, isSynced } = useCollaboration();
 
-  // --- 1. Generate consistent user info ---
   const userInfo = useMemo(() => ({
     name: "Anonymous",
     color: userColor.color,
