@@ -2,11 +2,12 @@
   "name": "unified-collaboration-editor",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev",
-    "lint": "cd client && npm run lint",
-    "typecheck": "cd client && npx tsc --noEmit"
+    "dev": "concurrently -n server,client -c blue,green \"cd packages/server && npm run dev\" \"cd packages/client && npm run dev\"",
+    "dev:server": "cd packages/server && npm run dev",
+    "dev:client": "cd packages/client && npm run dev",
+    "build": "cd packages/server && npm run build",
+    "typecheck": "cd packages/client && npx tsc --noEmit",
+    "lint": "cd packages/client && npm run lint"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"

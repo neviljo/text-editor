@@ -1,18 +1,15 @@
 {
-  "name": "server",
+  "name": "@repo/server",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "private": true,
+  "type": "module",
   "scripts": {
     "dev": "tsx watch index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "dependencies": {
     "@y/websocket-server": "^0.1.1",
     "cors": "^2.8.5",
@@ -20,7 +17,6 @@
     "express": "^5.1.0",
     "mongoose": "^8.2.0",
     "node-cache": "^5.1.2",
-    "nodemon": "^3.1.0",
     "ws": "^8.18.3",
     "y-mongodb-provider": "^0.2.1",
     "yjs": "^13.6.27"
