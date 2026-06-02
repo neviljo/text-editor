@@ -124,9 +124,8 @@ export function CollaborationProvider({
             if (provider) {
                 provider.destroy();
             }
-            ydoc.destroy();
         };
-    }, [provider, ydoc]);
+    }, [provider]);
 
     const contextValue = useMemo(() => ({
         provider, ydoc, isSynced, roomId, userId, accessDenied, connectionError
