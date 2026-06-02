@@ -7,22 +7,27 @@ import { setPersistence, setupWSConnection } from "@y/websocket-server/utils";
 import { MongodbPersistence } from "y-mongodb-provider";
 import mongoose from "mongoose";
 import cors from "cors";
-import { createCanvasForRoom, addCollaborator, deleteCanvas, updateCanvas } from "./services/canvasService.js";
+import {
+  createCanvasForRoom,
+  addCollaborator,
+  deleteCanvas,
+  updateCanvas,
+} from "./services/canvasService.js";
 import { canAccess, isOwner, isDemoCanvas } from "./services/permissionService.js";
 
 dotenv.config();
+
 const app = express();
-const PORT = process.env.PORT || 1234;
+const PORT = parseInt(process.env.PORT || "1234", 10);
 
-// MongoDB connection handled in startServer
-
-app.use(cors({
+app.use(
+  cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:3000",
     methods: ["GET", "POST", "PATCH", "DELETE"],
-}));
+  })
+);
 app.use(express.json());
 
-// Create a new room - creates a canvas internally
 app.post("/rooms", async (req, res) => {
   try {
     const { ownerId } = req.body;
@@ -30,7 +35,9 @@ app.post("/rooms", async (req, res) => {
 
     await createCanvasForRoom(roomId, ownerId);
 
-    console.log(`✨ Created room ${roomId} (Owner: ${ownerId || "Anonymous"})`);
+    console.log(
+      `✨ Created room ${roomId} (Owner: ${ownerId || "Anonymous"})`
+    );
 
     res.json({ roomId });
   } catch (error) {
@@ -39,23 +46,24 @@ app.post("/rooms", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.send("Yjs WebSocket server is running with Express 🚀");
 });
 
-// Delete a canvas (owner only)
 app.delete("/rooms/:roomId", async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
     const isOwnerResult = await isOwner(roomId, userId);
     if (!isOwnerResult) {
-      return res.status(403).json({ error: "Only the owner can delete this canvas" });
+      res.status(403).json({ error: "Only the owner can delete this canvas" });
+      return;
     }
 
     await deleteCanvas(roomId);
@@ -67,23 +75,26 @@ app.delete("/rooms/:roomId", async (req, res) => {
   }
 });
 
-// Update canvas settings (owner only)
 app.patch("/rooms/:roomId", async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userId, isPublic } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
     const isOwnerResult = await isOwner(roomId, userId);
     if (!isOwnerResult) {
-      return res.status(403).json({ error: "Only the owner can update this canvas" });
+      res
+        .status(403)
+        .json({ error: "Only the owner can update this canvas" });
+      return;
     }
 
-    const updates = {};
-    if (typeof isPublic === 'boolean') {
+    const updates: Record<string, unknown> = {};
+    if (typeof isPublic === "boolean") {
       updates.isPublic = isPublic;
     }
 
@@ -96,69 +107,63 @@ app.patch("/rooms/:roomId", async (req, res) => {
   }
 });
 
-// Create HTTP server from Express app
-const server = http.createServer(app)
+const server = http.createServer(app);
 
-// Create WebSocket server
-// Create WebSocket server with compression enabled
 const wss = new WebSocketServer({
   server,
   perMessageDeflate: {
     zlibDeflateOptions: {
-      // See zlib defaults.
       chunkSize: 1024,
       memLevel: 7,
-      level: 3
+      level: 3,
     },
     zlibInflateOptions: {
-      chunkSize: 10 * 1024
+      chunkSize: 10 * 1024,
     },
-    // Other options settable:
-    clientNoContextTakeover: true, // Defaults to negotiated value.
-    serverNoContextTakeover: true, // Defaults to negotiated value.
-    serverMaxWindowBits: 10, // Defaults to negotiated value.
-    // Below options specified as default values.
-    concurrencyLimit: 10, // Limits zlib concurrency for perf.
-    threshold: 1024 // Size (in bytes) below which messages
-    // should not be compressed if context takeover is disabled.
-  }
+    clientNoContextTakeover: true,
+    serverNoContextTakeover: true,
+    serverMaxWindowBits: 10,
+    concurrencyLimit: 10,
+    threshold: 1024,
+  },
 });
 
-// MongoDB persistence setup
-const mongodbPersistence = new MongodbPersistence(process.env.MONGO_URI, {
+const mongodbUri = process.env.MONGO_URI || "";
+const mongodbPersistence = new MongodbPersistence(mongodbUri, {
   collectionName: "editors",
   flushSize: 400,
   multipleCollections: true,
 });
 
-// Handle WebSocket connections
 wss.on("connection", async (conn, req) => {
-  // Parse URL to extract room name and query params
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
   const roomName = url.pathname.slice(1) || "default";
   const userId = url.searchParams.get("userId");
 
-  console.log(`🧩 Client connected to room: ${roomName}${userId ? ` (user: ${userId})` : " (anonymous)"}`);
+  console.log(
+    `🧩 Client connected to room: ${roomName}${
+      userId ? ` (user: ${userId})` : " (anonymous)"
+    }`
+  );
 
-  // Demo canvas: allow connection but skip persistence/membership
   if (isDemoCanvas(roomName)) {
     console.log(`🎮 Demo connection (anonymous)`);
     setupWSConnection(conn, req, { docName: roomName });
     return;
   }
 
-  // Permission check for all other canvases
   try {
     const hasAccess = await canAccess(roomName, userId);
     if (!hasAccess) {
-      console.log(`🚫 Access denied for ${userId || 'anonymous'} to room ${roomName}`);
+      console.log(
+        `🚫 Access denied for ${userId || "anonymous"} to room ${roomName}`
+      );
       conn.close(4403, "Access denied");
       return;
     }
 
-    // Track collaborator join (non-blocking, metadata only)
     if (userId) {
-      addCollaborator(roomName, userId).catch(err =>
+      addCollaborator(roomName, userId).catch((err) =>
         console.error("Failed to track collaborator:", err)
       );
     }
@@ -170,10 +175,8 @@ wss.on("connection", async (conn, req) => {
   }
 });
 
-// Persistence handlers
 setPersistence({
-  bindState: async (docName, ydoc) => {
-    // Demo room should not be persistent
+  bindState: async (docName: string, ydoc: Y.Doc) => {
     if (docName === "landing-demo") return;
 
     console.log(`⤵️ bindState called for "${docName}"`);
@@ -181,29 +184,22 @@ setPersistence({
       const persistedYdoc = await mongodbPersistence.getYDoc(docName);
       const persistedUpdate = Y.encodeStateAsUpdate(persistedYdoc);
 
-      const size =
-        persistedUpdate &&
-        (persistedUpdate.byteLength ?? persistedUpdate.length);
+      const size = persistedUpdate?.byteLength ?? persistedUpdate?.length;
       console.log(` - persistedUpdate size: ${size}`);
 
       if (size && size > 0) {
         Y.applyUpdate(ydoc, persistedUpdate);
-        // console.log(" - applied persisted update");
-      } else {
-        // console.log(" - no persisted update to apply");
       }
 
       if (typeof persistedYdoc?.destroy === "function") {
         persistedYdoc.destroy();
       }
 
-      ydoc.on("update", async (update) => {
-        const updateSize = update && (update.byteLength ?? update.length);
+      ydoc.on("update", async (update: Uint8Array) => {
+        const updateSize = update?.byteLength ?? update?.length;
         try {
           if (updateSize && updateSize > 0) {
             await mongodbPersistence.storeUpdate(docName, update);
-          } else {
-            // console.log(" - skipping empty update storage");
           }
         } catch (err) {
           console.error("Error storing update:", err);
@@ -214,8 +210,7 @@ setPersistence({
     }
   },
 
-  writeState: async (docName, ydoc) => {
-    // Demo room should not be persistent
+  writeState: async (docName: string, ydoc: Y.Doc) => {
     if (docName === "landing-demo") return;
 
     console.log(`⤴️ writeState called for "${docName}"`);
@@ -224,15 +219,11 @@ setPersistence({
 
       const mergedUpdate = Y.encodeStateAsUpdate(ydoc);
       const mergedSize =
-        mergedUpdate && (mergedUpdate.byteLength ?? mergedUpdate.length);
+        mergedUpdate?.byteLength ?? mergedUpdate?.length;
       console.log(` - mergedUpdate size: ${mergedSize}`);
 
       if (mergedSize && mergedSize > 0) {
         await mongodbPersistence.storeUpdate(docName, mergedUpdate);
-        // console.log(" - stored merged update");
-        // console.log("------------------------------");
-      } else {
-        // console.log(" - skipping storing empty merged update");
       }
     } catch (err) {
       console.error("writeState error:", err);
@@ -240,7 +231,6 @@ setPersistence({
   },
 });
 
-// Graceful shutdown
 process.on("SIGINT", () => {
   console.log("\n🛑 Shutting down server...\n");
   server.close(() => {
@@ -259,7 +249,9 @@ const startServer = async () => {
     console.log("✅ Mongoose connected");
 
     server.listen(PORT, () => {
-      console.log(`✅ Express + Yjs WebSocket server running at ws://localhost:${PORT}`);
+      console.log(
+        `✅ Express + Yjs WebSocket server running at ws://localhost:${PORT}`
+      );
     });
   } catch (err) {
     console.error("❌ Failed to start server:", err);

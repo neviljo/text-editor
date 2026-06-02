@@ -81,16 +81,16 @@ To run this project locally, you need the frontend application and a Yjs WebSock
     npm install
     ```
 
-2.  **Start the Backend Server**:
+2.  **Start the Server**:
     The project includes its own WebSocket + HTTP backend. In a separate terminal:
     ```bash
-    cd backend && npm install && npm run dev
+    cd server && npm install && npm run dev
     ```
     *(This starts the server on port 1234)*
 
-3.  **Start the Frontend**:
+3.  **Start the Client**:
     ```bash
-    cd editor && npm install && npm run dev
+    cd client && npm install && npm run dev
     ```
 
 4.  **Access the App**:
